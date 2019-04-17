@@ -1,11 +1,13 @@
-# Libraries
+#########################  Libraries ######################### 
 import cv2
 import numpy as np
+import os 
 import time
+import matplotlib.pyplot as plt
 from picamera import PiCamera
 from time import sleep
 
-# Functions
+#########################  Functions ######################### 
 
 def GetOptionSelected(option):
 	if(option == "P"):
@@ -16,8 +18,16 @@ def GetOptionSelected(option):
 		return "MultiCamera_img"
 	return None
 
-def TakePicture_PiCamera(camera, ruta, img_name):
+def TakePicture(camera, path, img_name):
+	
+	if path == "PiCamera_img":
+		return TakePicture_PiCamera(camera, path, img_name)
+		
+	elif path == "USBCamera_img":
+		return TakePicture_USBCamera(camera, path, img_name)
+		
 
+def TakePicture_PiCamera(camera, path, img_name):
 	#Create path
 	path = '{}/{}.jpg'.format(ruta, img_name)	
 	
@@ -32,6 +42,27 @@ def TakePicture_PiCamera(camera, ruta, img_name):
 	camera.capture(path)
 	
 	return path
+
+def TakePicture_USBCamera(camera, path, img_name):
+	size_img = "1280x720"
+	
+	#Create path
+	path = '{}/{}.jpg'.format(path, img_name)	
+	
+	os.system('fswebcam -r ' + size_img + ' --no-banner ' + path) # uses Fswebcam to take picture
+	
+	time.sleep(2) # this line creates a 15 second delay before repeating the loop
+	
+	return path
+
+def Draw_Rec_Times(times,name_chart = "Muestra del tiempo"):
+	times, iterations = list(zip(*times))
+	plt.title(name_chart)
+	plt.ylabel("Tiempo(seg)")
+	plt.xlabel("Iteraciones")
+	plt.plot(np.arange(len(iterations)), times, alpha=0.5, "bo-")
+	plt.grid(True)
+	plt.show()	
 
 def ShowImage(name_window, img):
 	cv2.namedWindow(name_window, cv2.WINDOW_NORMAL)
@@ -94,22 +125,37 @@ def ImageAligment(ruta1, ruta2):
 	#Save Img
 	cv2.imwrite('img/img_result.jpg',im2_aligned)
 
-# Main Code
+######################### Main Code ######################### 
 camera = PiCamera()
+times = []
 
 option = input("PICamera(P), USBCamera(U), MultiCamera(M): ")
 
 path = GetOptionSelected(option)
 
 if(path != None):
-
-	cronometro = time.time()	
 	
 	print("Start")
+
+	path_img_1 = TakePicture(camera, path, "img_{}".format(0)	
 	
-	for i in range(1000):
-		path_img = TakePicture_PiCamera(camera, path, "img_{}".format(i))
+	for i in range(1, 10):
+		#start time
+		start_time = time.time()	
+		
+		path_img_2 = TakePicture(camera, path, "img_{}".format(i))
+		ImageAligment(path_img_1, path_img_2)
+		
+		#Finish time
+		finish_time = time.time()
+		
+		#Save difference of both times
+		difference_times = finish_time - start_time
+		times.append((difference, i))
+		
+		path_img_1 = path_img_2
 	
-	
+	Draw_Rec_Times(times)
+		
 	print("Finished")
-	print("Duracion (H:M:S):{!s}".format(time.strftime("%H:%M:%S", time.gmtime(time.time() - cronometro))))
+	print("Duration (H:M:S):{!s}".format(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))))
