@@ -23,7 +23,7 @@ def Init_PICamera(path):
 	times = []
 	path_img_1 = TakePicture(camera, path, "img_{}".format(0))	
 	
-	for i in range(1,5):
+	for i in range(1,1000):
 		#start time
 		start_time = time.time()	
 		
@@ -47,7 +47,7 @@ def Init_USBCamera(path):
 	times = []
 	path_img_1 = TakePicture(camera, path, "img_{}".format(0))	
 	
-	for i in range(1,5):
+	for i in range(1,1000):
 		#start time
 		start_time = time.time()	
 		
@@ -102,7 +102,7 @@ def TakePicture_USBCamera(camera, path, img_name):
 	#Create path
 	path = '{}/{}.jpg'.format(path, img_name)	
 	
-	os.system('fswebcam -r ' + size_img + ' -S 15  --no-banner ' + path) # uses Fswebcam to take picture
+	os.system('fswebcam -r ' + size_img + ' -S 3  --no-banner ' + path) # uses Fswebcam to take picture
 	
 	time.sleep(0.2) # this line creates a 15 second delay before repeating the loop
 	
@@ -144,8 +144,11 @@ def Print_Times(times):
 	amount_items = len(times)
 	list_times, list_iterations = list(zip(*times))
 	
-	for i in range(amount_items):
+	for i in range(amount_items * 0.2):
 		table.add_row((list_iterations[i], list_times[i]))
+
+	for i in range(amount_items * 0.2, 0):
+		table.add_row((list_iterations[i-1], list_times[i-1]))
 	
 	print("\n\n")
 	print(table)
@@ -236,35 +239,55 @@ if(path_PI != None or path_USB != None):
 		start_time = time.time()
 		times_PI = Init_PICamera(path_PI)
 		finish_time = time.time()
-		
-		#Draw Chart
-		Draw_Bar_Times(times_PI)
-		
-		#Print Data
-		Print_Data(times_PI, start_time, finish_time)
-		
-		print("\nFinish PI\n")
+
+		if(option != "M"):		
+			#Draw Chart
+		 	Draw_Bar_Times(times_PI)
+		 
+		 	#Print Data
+		 	Print_Data(times_PI, start_time, finish_time)
+		 
+		 	print("\nFinish PI\n")
 
 	if(path_USB):
 		print("Starting USB")
 		start_time = time.time()
 		times_USB = Init_USBCamera(path_USB)
 		finish_time = time.time()	
-
+		
+		if(option != "M"):
+			#Draw Chart
+			Draw_Bar_Times(times_USB)
+		
+			#Print Data
+			Print_Data(times_USB, start_time, finish_time)
+			
+			print("\nFinish USB\n")
+	
+	if(path_PI and path_USB):
+		################PI
+		#Draw Chart
+		Draw_Bar_Times(times_PI)
+		 
+		#Print Data
+		Print_Data(times_PI, start_time, finish_time)
+		 
+		print("\nFinish PI\n")
+		 	
+		################USB
 		#Draw Chart
 		Draw_Bar_Times(times_USB)
 		
 		#Print Data
 		Print_Data(times_USB, start_time, finish_time)
-	
-	if(path_PI and path_USB):
+			
+		print("\nFinish USB\n")
+				
+		
 		media_PI = Get_Media(times_PI)
 		media_USB = Get_Media(times_USB)
 		
 		Draw_Bar_Mean((media_PI, media_USB))
-	
-		
-		print("\nFinish USB\n")
 		
 	
 	
