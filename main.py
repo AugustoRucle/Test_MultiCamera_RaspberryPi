@@ -6,42 +6,95 @@ import time
 import matplotlib.pyplot as plt
 from picamera import PiCamera
 from time import sleep
+from prettytable import PrettyTable
 
 #########################  Functions ######################### 
 
 def GetOptionSelected(option):
 	if(option == "P"):
-		return "PiCamera_img"
+		return "PiCamera_img", None
 	elif(option == "U"):
-		return "USBCamera_img"
+		return None, "USBCamera_img"
 	elif(option == "M"):
-		return "MultiCamera_img"
-	return None
+		return "PiCamera_img", "USBCamera_img"
+	return None, None
 
-def TakePicture(camera, path, img_name):
+def Init_PICamera(path):
+	times = []
+	path_img_1 = TakePicture(camera, path, "img_{}".format(0))	
+	
+	for i in range(1,5):
+		#start time
+		start_time = time.time()	
+		
+		path_img_2 = TakePicture(camera, path, "img_{}".format(i))
+		print("Comparando: {} vs {}".format(path_img_1, path_img_2))
+		ImageAligment(path_img_1, path_img_2)
+		
+		#Finish time
+		finish_time = time.time()
+		
+		#Save difference of both times
+		difference_times = finish_time - start_time
+		times.append((difference_times, i))
+		print("Duracion: {}".format(difference_times))
+		
+		path_img_1 = path_img_2
+	
+	return times	
+	
+def Init_USBCamera(path):
+	times = []
+	path_img_1 = TakePicture(camera, path, "img_{}".format(0))	
+	
+	for i in range(1,5):
+		#start time
+		start_time = time.time()	
+		
+		path_img_2 = TakePicture(camera, path, "img_{}".format(i))
+		print("Comparando: {} vs {}".format(path_img_1, path_img_2))
+		ImageAligment(path_img_1, path_img_2)
+		
+		#Finish time
+		finish_time = time.time()
+		
+		#Save difference of both times
+		difference_times = finish_time - start_time
+		times.append((difference_times, i))
+		print("Duracion: {}".format(difference_times))
+		
+		path_img_1 = path_img_2
+	
+	return times		
+
+def TakePicture(camera, path, img_name, resolution = (640, 480)):
 	
 	if path == "PiCamera_img":
-		return TakePicture_PiCamera(camera, path, img_name)
+		return TakePicture_PiCamera(camera, path, img_name, resolution)
 		
 	elif path == "USBCamera_img":
 		return TakePicture_USBCamera(camera, path, img_name)
 		
 
-def TakePicture_PiCamera(camera, path, img_name):
+def TakePicture_PiCamera(camera, path, img_name, resolution):
+	
+	#Full resolution = 2592, 1944
+	
 	#Create path
-	path = '{}/{}.jpg'.format(ruta, img_name)	
+	path = '{}/{}.jpg'.format(path, img_name)	
 	
 	#Setting camera
 	camera.rotation = 180
-	camera.resolution = (2592, 1944)
+	camera.resolution = resolution
 	
 	# Camera warm-up time
-	sleep(3)
+	sleep(0.2)
 	
 	#Capture picture
 	camera.capture(path)
 	
 	return path
+
 
 def TakePicture_USBCamera(camera, path, img_name):
 	size_img = "1280x720"
@@ -49,24 +102,71 @@ def TakePicture_USBCamera(camera, path, img_name):
 	#Create path
 	path = '{}/{}.jpg'.format(path, img_name)	
 	
-	os.system('fswebcam -r ' + size_img + ' --no-banner ' + path) # uses Fswebcam to take picture
+	os.system('fswebcam -r ' + size_img + ' -S 15  --no-banner ' + path) # uses Fswebcam to take picture
 	
-	time.sleep(2) # this line creates a 15 second delay before repeating the loop
+	time.sleep(0.2) # this line creates a 15 second delay before repeating the loop
 	
 	return path
 
-def Draw_Rec_Times(times,name_chart = "Muestra del tiempo"):
+
+def Draw_Bar_Times(times):
 	times, iterations = list(zip(*times))
-	plt.title(name_chart)
+	
+	plt.suptitle("Comparación de los tiempos de ejecución", fontsize=12)
+	plt.title("para  N=1000 ejecuciones")
+	
 	plt.ylabel("Tiempo(seg)")
-	plt.xlabel("Iteraciones")
-	plt.plot(np.arange(len(iterations)), times, alpha=0.5, "bo-")
+	plt.xlabel("Ejecuciones")
+	plt.plot(iterations, times, "bo-", alpha=0.5)
 	plt.grid(True)
 	plt.show()	
+
+
+def Draw_Bar_Mean(media):
+	n_groups = 2
+	fig, ax = plt.subplots()
+	index = np.arange(n_groups)
+	bar_width, opacity = 0.8, 0.8
+	
+	plt.suptitle("Comparación de los tiempos de ejecución promedios", fontsize=12)
+	plt.title("para  N=1000 ejecuciones")
+	plt.bar(index, (media), bar_width, alpha=opacity, color='b')
+	plt.ylabel('Tiempo(seg)')
+	plt.xlabel('Configuraciones')
+	plt.xticks(index, ('Config_1', 'Config_2'))
+	plt.grid(True)
+	plt.show()
+
+
+def Print_Times(times):
+	table = PrettyTable()
+	table.field_names = ["# Ejecución", "Tiempo(Seg)"]
+	amount_items = len(times)
+	list_times, list_iterations = list(zip(*times))
+	
+	for i in range(amount_items):
+		table.add_row((list_iterations[i], list_times[i]))
+	
+	print("\n\n")
+	print(table)
+	print("\n")
+	
+
+def Print_Data(times, start_time, finish_time):
+	Print_Times(times)
+	print("Media: {}\n".format(Get_Media(times)))
+	print("Duration (H:M:S):{!s}\n\n".format(time.strftime("%H:%M:%S", time.gmtime(finish_time - start_time))))
+
+
+def Get_Media(times):
+	media = list(map(lambda x: x[0], times))
+	media = sum(media) / len(media)
+	return media		
 
 def ShowImage(name_window, img):
 	cv2.namedWindow(name_window, cv2.WINDOW_NORMAL)
 	cv2.imshow(name_window, img)
+
 
 def ImageAligment(ruta1, ruta2):
 	# Read the images to be aligned
@@ -111,12 +211,7 @@ def ImageAligment(ruta1, ruta2):
 	else :
 	# Use warpAffine for Translation, Euclidean and Affine
 		im2_aligned = cv2.warpAffine(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
-		
-	#Show results
-	#ShowImage("Image 1", im1)
-	#ShowImage("Image 2", im2)
-	#ShowImage("Image 3", im2_aligned)
-	#cv2.waitKey(0)
+
 	
 	# Show final results
 	imagen1 = cv2.imread(ruta1, 1)
@@ -127,35 +222,55 @@ def ImageAligment(ruta1, ruta2):
 
 ######################### Main Code ######################### 
 camera = PiCamera()
-times = []
 
 option = input("PICamera(P), USBCamera(U), MultiCamera(M): ")
 
-path = GetOptionSelected(option)
+path_PI, path_USB = GetOptionSelected(option)
 
-if(path != None):
-	
-	print("Start")
+times_PI, times_USB = [], []
 
-	path_img_1 = TakePicture(camera, path, "img_{}".format(0)	
-	
-	for i in range(1, 10):
-		#start time
-		start_time = time.time()	
-		
-		path_img_2 = TakePicture(camera, path, "img_{}".format(i))
-		ImageAligment(path_img_1, path_img_2)
-		
-		#Finish time
+if(path_PI != None or path_USB != None):
+
+	if(path_PI):
+		print("Starting PI")
+		start_time = time.time()
+		times_PI = Init_PICamera(path_PI)
 		finish_time = time.time()
 		
-		#Save difference of both times
-		difference_times = finish_time - start_time
-		times.append((difference, i))
+		#Draw Chart
+		Draw_Bar_Times(times_PI)
 		
-		path_img_1 = path_img_2
+		#Print Data
+		Print_Data(times_PI, start_time, finish_time)
+		
+		print("\nFinish PI\n")
+
+	if(path_USB):
+		print("Starting USB")
+		start_time = time.time()
+		times_USB = Init_USBCamera(path_USB)
+		finish_time = time.time()	
+
+		#Draw Chart
+		Draw_Bar_Times(times_USB)
+		
+		#Print Data
+		Print_Data(times_USB, start_time, finish_time)
 	
-	Draw_Rec_Times(times)
+	if(path_PI and path_USB):
+		media_PI = Get_Media(times_PI)
+		media_USB = Get_Media(times_USB)
 		
-	print("Finished")
-	print("Duration (H:M:S):{!s}".format(time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))))
+		Draw_Bar_Mean((media_PI, media_USB))
+	
+		
+		print("\nFinish USB\n")
+		
+	
+	
+	
+	
+	
+	
+	
+	
