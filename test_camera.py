@@ -3,15 +3,18 @@ import time
 import matplotlib.pyplot as plt
 from prettytable import PrettyTable
 from myThread import Camera
+from picamera import PiCamera
+import numpy as np
+
 
 #########################  Functions ######################### 
 
-def GetOptionSelected(option):
+def GetPath(option):
 	if(option == "P"):
 		return "PiCamera_img", None
 	elif(option == "U"):
 		return None, "USBCamera_img"
-	elif(option == "M"):
+	elif(option == "M" or option == "A"):
 		return "PiCamera_img", "USBCamera_img"
 	return None, None
 
@@ -29,17 +32,17 @@ def Draw_Bar_Times(times):
 
 
 def Draw_Bar_Mean(media):
-	n_groups = 2
+	n_groups = 4
 	fig, ax = plt.subplots()
 	index = np.arange(n_groups)
-	bar_width, opacity = 0.8, 0.8
+	bar_width, opacity = 0.5, 0.8
 	
 	plt.suptitle("Comparación de los tiempos de ejecución promedios", fontsize=12)
 	plt.title("para  N=1000 ejecuciones")
 	plt.bar(index, (media), bar_width, alpha=opacity, color='b')
 	plt.ylabel('Tiempo(seg)')
 	plt.xlabel('Configuraciones')
-	plt.xticks(index, ('Config_1', 'Config_2'))
+	plt.xticks(index, ('Config_1', 'Config_2', 'Config_4 PI', 'Config_4 USB'))
 	plt.grid(True)
 	plt.show()
 
@@ -47,62 +50,71 @@ def Draw_Bar_Mean(media):
 def Print_Times(times):
 	table = PrettyTable()
 	table.field_names = ["# Ejecución", "Tiempo(Seg)"]
-	amount_items = len(times)
+	amount_items, N = len(times), int(len(times) * 0.4)
 	list_times, list_iterations = list(zip(*times))
 	
-	for i in range(amount_items * 0.2):
+	for i in range(N):
 		table.add_row((list_iterations[i], list_times[i]))
 
-	for i in range(amount_items * 0.2, 0):
-		table.add_row((list_iterations[i-1], list_times[i-1]))
+	for i in range(1, N):
+		table.add_row((list_iterations[amount_items-i], list_times[amount_items-i]))
 	
 	print("\n\n")
 	print(table)
 	print("\n")
 	
 
-def Print_Data(times, start_time, finish_time):
+def Print_Data(times):
 	Print_Times(times)
 	print("Media: {}\n".format(Get_Media(times)))
-	print("Duration (H:M:S):{!s}\n\n".format(time.strftime("%H:%M:%S", time.gmtime(finish_time - start_time))))
+
+def Get_Media(times):
+	media = list(map(lambda x: x[0], times))
+	media = sum(media) / len(media)
+	return media	
 
 ######################### Main Code ######################### 
+camera = PiCamera()
 
-option = input("PICamera(P), USBCamera(U), MultiCamera(M): ")
+option = input("PICamera(P), USBCamera(U), MultiCamera(M), All(A): ")
 
-path_PI, path_USB = GetOptionSelected(option)
+path_PI, path_USB = GetPath(option)
 
-times_PI, times_USB = [], []
+times_PI, times_USB, times_PI_Multi, times_USB_Multi = [], [], [], []
 
 
 if(path_PI != None or path_USB != None):
 
-	if(path_PI):
+	if(option == "P" or option == "A"):
 		print("Starting PI")
 		start_time = time.time()
-		pi_camera = Camera("PI_Camera thread", times_PI, path_PI)
-        pi_camera.start()
-        pi_camera.join()
+		pi_camera = Camera("PI_Camera thread", times_PI, path_PI, camera)
+		pi_camera.start()
+		pi_camera.join()
 		finish_time = time.time()
 
-		if(option != "M"):		
+		if(option != "A"):	
+			print("Impriendo datos de PI_Camera")	
 			#Draw Chart
-		 	Draw_Bar_Times(times_PI)
-		 
-		 	#Print Data
-		 	Print_Data(times_PI, start_time, finish_time)
+			Draw_Bar_Times(times_PI)
+			
+			#Print Data
+			Print_Data(times_PI, start_time, finish_time)
 		 
 		print("\nFinish PI\n")
 
-	if(path_USB):
+	if(option == "U" or option == "A"):
 		print("Starting USB")
 		start_time = time.time()
-        usb_camera = Camera("USB_Camera thread", times_USB, path_USB)
-        usb_camera.start()
-        usb_camera.join()
+		usb_camera = Camera("USB_Camera thread", times_USB, path_USB, camera)
+		usb_camera.start()
+		usb_camera.join()
 		finish_time = time.time()	
 		
-		if(option != "M"):
+		if(option != "A"):
+			
+			print("Impriendo datos de USB_Camera")			
+			
 			#Draw Chart
 			Draw_Bar_Times(times_USB)
 		
@@ -111,32 +123,84 @@ if(path_PI != None or path_USB != None):
 			
 		print("\nFinish USB\n")
 	
-	if(path_PI and path_USB):
+	if(option == "M" or option == "A"):	
+		
+		#Init PI
+		pi_camera = Camera("PI_Camera thread", times_PI_Multi, path_PI, camera)
+		
 
-        
+		#Init USB		
+		usb_camera = Camera("USB_Camera thread", times_USB_Multi, path_USB, camera)
+		
+		#Start thread
+		pi_camera.start()
+		usb_camera.start()
 
-		################ PI
+		#Wait for other threads
+		pi_camera.join()
+		usb_camera.join()
+		
+		if(option != "A"):
+			############### PI
+			print("\nPrint Data PI\n")
+		
+			#Draw Chart
+			Draw_Bar_Times(times_PI)
+		 
+			#Print Data
+			Print_Data(times_PI)
+		
+			################ USB
+			print("\nPrint Data USB\n")
+		
+			#Draw Chart
+			Draw_Bar_Times(times_USB)
+		
+			#Print Data
+			Print_Data(times_USB)
+	
+	if(option == "A"):
+		media_PI = Get_Media(times_PI)
+		media_USB = Get_Media(times_USB)
+		media_PI_Multi = Get_Media(times_PI_Multi)
+		media_USB_Multi = Get_Media(times_USB_Multi)
+		
+		############### PI
+		print("\nPrint Data PI\n")
+		
 		#Draw Chart
 		Draw_Bar_Times(times_PI)
 		 
 		#Print Data
-		Print_Data(times_PI, start_time, finish_time)
-		 
-		print("\nFinish PI\n")
-		 	
+		Print_Data(times_PI)
+	
 		################ USB
+		print("\nPrint Data USB\n")
+		
 		#Draw Chart
 		Draw_Bar_Times(times_USB)
 		
 		#Print Data
-		Print_Data(times_USB, start_time, finish_time)
-			
-		print("\nFinish USB\n")
-				
+		Print_Data(times_USB)
 		
-		media_PI = Get_Media(times_PI)
-		media_USB = Get_Media(times_USB)
+		############### PI Multi
+		print("\nPrint Data PI Multi\n")
 		
-		Draw_Bar_Mean((media_PI, media_USB))
+		#Draw Chart
+		Draw_Bar_Times(times_PI_Multi)
+		 
+		#Print Data
+		Print_Data(times_PI_Multi)
+	
+		################ USB Multi
+		print("\nPrint Data USB Multi\n")
+		
+		#Draw Chart
+		Draw_Bar_Times(times_USB_Multi)
+		
+		#Print Data
+		Print_Data(times_USB_Multi)
+		
+		Draw_Bar_Mean((media_PI, media_USB, media_PI_Multi, media_USB_Multi))
 		
 	
