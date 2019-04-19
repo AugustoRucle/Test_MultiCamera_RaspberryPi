@@ -1,4 +1,5 @@
 import cv2
+import os
 import time
 import threading
 import numpy as np
@@ -6,23 +7,23 @@ from time import sleep
 from picamera import PiCamera
 
 class Camera (threading.Thread):
-    def __init__(self, name, times, path):
+    def __init__(self, name, times, path, camera):
         threading.Thread.__init__(self)
         self.name = name
         self.times = times
         self.path = path
+        self.camera = camera
 
     def run(self):
         print ("Starting " + self.name)
-        Init_Camera(self.path)
+        Init_Camera(self.path, self.times, self.camera)
         print ("Exiting " + self.name)
 
-def Init_Camera(path):
-    
-    camera = PiCamera()
+def Init_Camera(path, times, camera):
+
 	path_img_1 = TakePicture(camera, path, "img_{}".format(0))	
 	
-	for i in range(1,1000):
+	for i in range(1,10):
 		#start time
 		start_time = time.time()	
 		
@@ -35,7 +36,7 @@ def Init_Camera(path):
 		
 		#Save difference of both times
 		difference_times = finish_time - start_time
-		self.times.append((difference_times, i))
+		times.append((difference_times, i))
 		print("Duracion: {}".format(difference_times))
 		
 		path_img_1 = path_img_2
@@ -138,3 +139,6 @@ def ImageAligment(ruta1, ruta2):
 	
 	#Save Img
 	cv2.imwrite('img/img_result.jpg',im2_aligned)
+	
+	
+	
