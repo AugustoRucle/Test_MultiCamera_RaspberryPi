@@ -25,7 +25,7 @@ def Draw_Plot_Times(times, title="Comparación de los tiempos de ejecución", su
 	plt.suptitle(title, fontsize=12)
 	plt.title(subtitle)
 	
-	plt.ylabel("Tiempo(seg)")
+	plt.ylabel("Tiempo(ms)")
 	plt.xlabel("Ejecuciones")
 	plt.plot(iterations, times, "bo-", alpha=0.5)
 	plt.grid(True)
