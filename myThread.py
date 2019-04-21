@@ -47,7 +47,13 @@ def TakePicture(camera, path, img_name, resolution = (640, 480)):
 		return TakePicture_PiCamera(camera, path, img_name, resolution)
 		
 	elif path == "USBCamera_img":
-		return TakePicture_USBCamera(camera, path, img_name)
+		return TakePicture_USBCamera(camera, path, img_name, "-d /dev/video0")
+	
+	elif path == "USBCamera_img/camera0":
+		return TakePicture_USBCamera(camera, path, img_name, "-d /dev/video0")
+		
+	elif path == "USBCamera_img/camera1":
+		return TakePicture_USBCamera(camera, path, img_name, "-d /dev/video1")
 		
 
 def TakePicture_PiCamera(camera, path, img_name, resolution):
@@ -70,17 +76,18 @@ def TakePicture_PiCamera(camera, path, img_name, resolution):
 	return path
 
 
-def TakePicture_USBCamera(camera, path, img_name):
+def TakePicture_USBCamera(camera, path, img_name, device):
 	size_img = "1280x720"
 	
 	#Create path
 	path = '{}/{}.jpg'.format(path, img_name)	
 	
-	os.system('fswebcam -r ' + size_img + ' -S 3  --no-banner ' + path) # uses Fswebcam to take picture
+	os.system('fswebcam ' + device +' -r ' + size_img + ' -S 3  --no-banner ' + path) # uses Fswebcam to take picture
 	
 	time.sleep(0.2) # this line creates a 15 second delay before repeating the loop
 	
 	return path
+
 
 def Get_Media(times):
 	media = list(map(lambda x: x[0], times))
